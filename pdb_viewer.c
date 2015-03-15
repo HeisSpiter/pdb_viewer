@@ -40,7 +40,7 @@ STATIC_ASSERT(sizeof(uint16_t *) == 4);
 typedef struct __attribute__((__packed__)) _pdb_stream_t
 {
     uint32_t stream_size;
-    uint16_t * stream_page;
+    uint16_t stream_page[2];
 } pdb_stream_t;
 
 typedef struct __attribute__((__packed__)) _pdb_header_t
@@ -55,6 +55,7 @@ typedef struct __attribute__((__packed__)) _pdb_root_t
 {
     uint16_t count;
     uint16_t reserved;
+    pdb_stream_t streams;
 } pdb_root_t;
 
 static inline uint32_t min(uint32_t a, uint32_t b)
@@ -207,6 +208,8 @@ static void extract_pdb(char const * const pdb_file)
     FILE * pdb_stream;
     pdb_header_t header;
     pdb_root_t * root_stream = NULL;
+    uint32_t entry;
+    pdb_stream_t * stream;
 
     pdb_stream = fopen(pdb_file, "rb");
     if (pdb_stream == NULL)
@@ -231,6 +234,26 @@ static void extract_pdb(char const * const pdb_file)
 
     printf("root_stream->count = %x\n", root_stream->count);
     printf("root_stream->reserved = %x\n", root_stream->reserved);
+
+    stream = &root_stream->streams;
+    for (entry = 0; entry < root_stream->count; ++entry)
+    {
+        uint32_t pages = stream->stream_size / header.page_size + 1;
+        if (stream->stream_size == 0)
+        {
+            pages = 0;
+        }
+
+        printf("Stream size: %x\n", stream->stream_size);
+        printf("Stream pages: %x\n", pages);
+
+        stream = (pdb_stream_t *)((char *)stream + sizeof(pdb_stream_t));
+        if (stream > (pdb_stream_t *)((char *)root_stream + header.root_stream.stream_size))
+        {
+            printf("Attempting to read beyond root stream in '%s'\n", pdb_file);
+            goto leave;
+        }
+    }
 
 leave:
     free(root_stream);
