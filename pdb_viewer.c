@@ -121,14 +121,92 @@ static int validate_header(char const * const pdb_file, FILE * const pdb_stream,
     return 0;
 }
 
+static pdb_root_t * open_root_stream(char const * const pdb_file, FILE * const pdb_stream, pdb_header_t const * const header)
+{
+    int error = 0;
+    uint32_t root_size;
+    uint32_t root_pages;
+    pdb_root_t * root_stream = NULL;
+    uint32_t page;
+
+    /* Prepare and validate for root stream read */
+    root_size = header->root_stream.stream_size;
+    root_pages = (root_size / header->page_size) + 1;
+    if (root_size == 0 || root_pages == 0)
+    {
+        fprintf(stderr, "Invalid number of root pages in '%s'\n", pdb_file);
+        return NULL;
+    }
+
+    root_stream = malloc(root_size);
+    if (root_stream == NULL)
+    {
+        fprintf(stderr, "Memory allocation failure for %xB\n", header->root_stream.stream_size);
+        return NULL;
+    }
+
+    /* Read the root stream */
+    for (page = 0; page < root_pages; ++page)
+    {
+        uint16_t root_page;
+        long header_position;
+        long page_position;
+        uint32_t to_read;
+
+        if (fread(&root_page, sizeof(uint16_t), 1, pdb_stream) != 1)
+        {
+            fprintf(stderr, "Failed to read root page %u from '%s'\n", page, pdb_file);
+            error = 1;
+            goto leave;
+        }
+
+        header_position = ftell(pdb_stream);
+        page_position = root_page * header->page_size;
+        if (fseek(pdb_stream, page_position, SEEK_SET) == -1)
+        {
+            fprintf(stderr, "Failed to seek root page %u at %lx from '%s'\n", page, page_position, pdb_file);
+            error = 1;
+            goto leave;
+        }
+
+        to_read = min(header->page_size, root_size);
+        if (fread((void *)((char *)root_stream + (page * header->page_size)), to_read, 1, pdb_stream) != 1)
+        {
+            fprintf(stderr, "Failed to read root page %u at %lx from '%s'\n", page, page_position, pdb_file);
+            error = 1;
+            goto leave;
+        }
+        root_size -= to_read;
+
+        if (fseek(pdb_stream, header_position, SEEK_SET) == -1)
+        {
+            fprintf(stderr, "Failed to seek header position %lx from '%s'\n", header_position, pdb_file);
+            error = 1;
+            goto leave;
+        }
+    }
+
+    if (root_size != 0)
+    {
+        fprintf(stderr, "Inconsistent root stream read in '%s'\n", pdb_file);
+        error = 1;
+    }
+
+leave:
+    if (error)
+    {
+        free(root_stream);
+        root_stream = NULL;
+    }
+
+    return root_stream;
+}
+
 static void extract_pdb(char const * const pdb_file)
 {
     FILE * pdb_stream;
     pdb_header_t header;
     pdb_root_t * root_stream = NULL;
-    uint32_t root_pages;
-    uint32_t page;
-    uint32_t root_size;
 
     pdb_stream = fopen(pdb_file, "rb");
     if (pdb_stream == NULL)
@@ -143,60 +221,14 @@ static void extract_pdb(char const * const pdb_file)
         goto leave;
     }
 
-    /* Prepare and validate for root stream read */
-    root_size = header.root_stream.stream_size;
-    root_pages = (root_size / header.page_size) + 1;
-    if (root_size == 0 || root_pages == 0)
-    {
-        fprintf(stderr, "Invalid number of root pages in '%s'\n", pdb_file);
-        goto leave;
-    }
-
-    root_stream = malloc(root_size);
-    if (root_stream == NULL)
-    {
-        fprintf(stderr, "Memory allocation failure for %xB\n", header.root_stream.stream_size);
-        goto leave;
-    }
 
     /* Read the root stream */
-    for (page = 0; page < root_pages; ++page)
+    root_stream = open_root_stream(pdb_file, pdb_stream, &header);
+    if (root_stream == NULL)
     {
-        uint16_t root_page;
-        long header_position;
-        long page_position;
-        uint32_t to_read;
-
-        if (fread(&root_page, sizeof(uint16_t), 1, pdb_stream) != 1)
-        {
-            fprintf(stderr, "Failed to read root page %u from '%s'\n", page, pdb_file);
-            goto leave;
-        }
-
-        header_position = ftell(pdb_stream);
-        page_position = root_page * header.page_size;
-        if (fseek(pdb_stream, page_position, SEEK_SET) == -1)
-        {
-            fprintf(stderr, "Failed to seek root page %u at %lx from '%s'\n", page, page_position, pdb_file);
-            goto leave;
-        }
-
-        to_read = min(header.page_size, root_size);
-        if (fread((void *)((char *)root_stream + (page * header.page_size)), to_read, 1, pdb_stream) != 1)
-        {
-            fprintf(stderr, "Failed to read root page %u at %lx from '%s'\n", page, page_position, pdb_file);
-            goto leave;
-        }
-        root_size -= to_read;
-
-        if (fseek(pdb_stream, header_position, SEEK_SET) == -1)
-        {
-            fprintf(stderr, "Failed to seek header position %lx from '%s'\n", header_position, pdb_file);
-            goto leave;
-        }
+        goto leave;
     }
 
-    assert(root_size == 0);
     printf("root_stream->count = %x\n", root_stream->count);
     printf("root_stream->reserved = %x\n", root_stream->reserved);
 
