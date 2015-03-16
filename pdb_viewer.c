@@ -30,12 +30,8 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#define STATIC_ASSERT(e) typedef char __STATIC_ASSERT__[(e) ? 1 : -1]
-
 #define PDB_SIGNATURE_200 "Microsoft C/C++ program database 2.00\r\n\x1AJG\0"
 #define PDB_SIGNATURE_200_SIZE sizeof(PDB_SIGNATURE_200)
-
-STATIC_ASSERT(sizeof(uint16_t *) == 4);
 
 typedef struct __attribute__((__packed__)) _pdb_stream_t
 {
