@@ -29,6 +29,7 @@
 #include <unistd.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <stddef.h>
 
 #define PDB_SIGNATURE_200 "Microsoft C/C++ program database 2.00\r\n\x1AJG\0"
 #define PDB_SIGNATURE_200_SIZE sizeof(PDB_SIGNATURE_200)
@@ -51,7 +52,7 @@ typedef struct __attribute__((__packed__)) _pdb_root_t
 {
     uint16_t count;
     uint16_t reserved;
-    pdb_stream_t streams;
+    pdb_stream_t streams[1];
 } pdb_root_t;
 
 static inline uint32_t min(uint32_t a, uint32_t b)
@@ -187,6 +188,15 @@ static pdb_root_t * open_root_stream(char const * const pdb_file, FILE * const p
     {
         fprintf(stderr, "Inconsistent root stream read in '%s'\n", pdb_file);
         error = 1;
+        goto leave;
+    }
+
+    /* Validate number of streams in root */
+    if (offsetof(pdb_root_t, streams) + root_stream->count * sizeof(pdb_stream_t) > header->root_stream.stream_size)
+    {
+        fprintf(stderr, "Inconsistent root stream size in '%s'\n", pdb_file);
+        error = 1;
+        goto leave;
     }
 
 leave:
@@ -205,7 +215,6 @@ static void extract_pdb(char const * const pdb_file)
     pdb_header_t header;
     pdb_root_t * root_stream = NULL;
     uint32_t entry;
-    pdb_stream_t * stream;
 
     pdb_stream = fopen(pdb_file, "rb");
     if (pdb_stream == NULL)
@@ -231,10 +240,13 @@ static void extract_pdb(char const * const pdb_file)
     printf("root_stream->count = %x\n", root_stream->count);
     printf("root_stream->reserved = %x\n", root_stream->reserved);
 
-    stream = &root_stream->streams;
     for (entry = 0; entry < root_stream->count; ++entry)
     {
-        uint32_t pages = stream->stream_size / header.page_size + 1;
+        pdb_stream_t * stream;
+        uint32_t pages;
+
+        stream = &root_stream->streams[entry];
+        pages = stream->stream_size / header.page_size + 1;
         if (stream->stream_size == 0)
         {
             pages = 0;
@@ -242,13 +254,6 @@ static void extract_pdb(char const * const pdb_file)
 
         printf("Stream size: %x\n", stream->stream_size);
         printf("Stream pages: %x\n", pages);
-
-        stream = (pdb_stream_t *)((char *)stream + sizeof(pdb_stream_t));
-        if (stream > (pdb_stream_t *)((char *)root_stream + header.root_stream.stream_size))
-        {
-            printf("Attempting to read beyond root stream in '%s'\n", pdb_file);
-            goto leave;
-        }
     }
 
 leave:
