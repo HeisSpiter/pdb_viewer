@@ -16,7 +16,7 @@
 * along with this program. If not, see <http://www.gnu.org/licenses/>.
 *
 * This work is based on:
-* Schreiber, Sven B. Undocumented Windows 2000 secrets: a programmer's cookbook. Reading: Addison-Wesley, 2001. 
+* Schreiber, Sven B. Undocumented Windows 2000 secrets: a programmer's cookbook. Reading: Addison-Wesley, 2001.
 * ISBN: 0201721872
 */
 
