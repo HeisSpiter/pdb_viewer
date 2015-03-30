@@ -215,6 +215,9 @@ static void extract_pdb(char const * const pdb_file)
     pdb_header_t header;
     pdb_root_t * root_stream = NULL;
     uint32_t entry;
+    uint32_t total_pages = 0;
+    uint16_t * pages_list;
+    uint32_t page;
 
     pdb_stream = fopen(pdb_file, "rb");
     if (pdb_stream == NULL)
@@ -240,6 +243,9 @@ static void extract_pdb(char const * const pdb_file)
     printf("root_stream->count = %x\n", root_stream->count);
     printf("root_stream->reserved = %x\n", root_stream->reserved);
 
+    total_pages = 0;
+    pages_list = (uint16_t *)((char *)root_stream + offsetof(pdb_root_t, streams) + root_stream->count * sizeof(pdb_stream_t));
+
     for (entry = 0; entry < root_stream->count; ++entry)
     {
         pdb_stream_t * stream;
@@ -254,6 +260,18 @@ static void extract_pdb(char const * const pdb_file)
 
         printf("Stream size: %x\n", stream->stream_size);
         printf("Stream pages: %x\n", pages);
+
+        if (pages > 0)
+        {
+            printf("Stream pages list: ");
+            for (page = total_pages; page < total_pages + pages; ++page)
+            {
+                printf("%x ", pages_list[page]);
+            }
+            printf("\n");
+        }
+
+        total_pages += pages;
     }
 
 leave:
