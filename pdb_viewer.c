@@ -216,14 +216,11 @@ leave:
     return root_stream;
 }
 
-static void read_stream(char const * const pdb_file, FILE * const pdb_stream, pdb_stream_t const * const stream, uint32_t pages, uint16_t const * const pages_list, pdb_header_t const * const header)
+static void read_stream(char const * const pdb_file, FILE * const pdb_stream, pdb_stream_t const * const stream, uint16_t stream_index, uint32_t pages, uint16_t const * const pages_list, pdb_header_t const * const header)
 {
     uint32_t page;
-    char * stream_buffer;
+    void * stream_buffer;
     uint32_t stream_size;
-
-    printf("Stream size: %x\n", stream->stream_size);
-    printf("Stream pages: %x\n", pages);
 
     if (pages == 0)
     {
@@ -258,7 +255,7 @@ static void read_stream(char const * const pdb_file, FILE * const pdb_stream, pd
         }
 
         to_read = min(header->page_size, stream_size);
-        if (fread((void *)(stream_buffer + (page * header->page_size)), to_read, 1, pdb_stream) != 1)
+        if (fread((void *)((char *)stream_buffer + (page * header->page_size)), to_read, 1, pdb_stream) != 1)
         {
             fprintf(stderr, "Failed to read stream page %u at %lx from '%s'\n", page, page_position, pdb_file);
             goto leave;
@@ -266,6 +263,7 @@ static void read_stream(char const * const pdb_file, FILE * const pdb_stream, pd
         stream_size -= to_read;
 
     }
+
 leave:
     free(stream_buffer);
 }
@@ -275,7 +273,7 @@ static void extract_pdb(char const * const pdb_file)
     FILE * pdb_stream;
     pdb_header_t header;
     pdb_root_t * root_stream = NULL;
-    uint32_t entry;
+    uint16_t entry;
     uint32_t total_pages = 0;
     uint16_t * pages_list;
     uint32_t page;
@@ -316,7 +314,7 @@ static void extract_pdb(char const * const pdb_file)
             pages = 0;
         }
 
-        read_stream(pdb_file, pdb_stream, stream, pages, pages_list + total_pages, &header);
+        read_stream(pdb_file, pdb_stream, stream, entry, pages, pages_list + total_pages, &header);
 
         total_pages += pages;
     }
