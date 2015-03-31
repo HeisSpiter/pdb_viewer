@@ -55,6 +55,15 @@ typedef struct __attribute__((__packed__)) _pdb_root_t
     pdb_stream_t streams[1];
 } pdb_root_t;
 
+typedef enum
+{
+    type_root_t = 0,
+    type_pdb_header_t,
+    type_tpi,
+    type_dbi,
+    type_fpo = 5,
+} stream_types_t;
+
 static inline uint32_t min(uint32_t a, uint32_t b)
 {
     if (a > b) return b;
@@ -260,8 +269,38 @@ static void read_stream(char const * const pdb_file, FILE * const pdb_stream, pd
             fprintf(stderr, "Failed to read stream page %u at %lx from '%s'\n", page, page_position, pdb_file);
             goto leave;
         }
-        stream_size -= to_read;
 
+        stream_size -= to_read;
+    }
+
+    switch (stream_index)
+    {
+        case type_root_t:
+            if (stream->stream_size != header->root_stream.stream_size)
+            {
+                printf("Mismatching root stream and copy root stream sizes!\n");
+            }
+
+            break;
+
+        case type_pdb_header_t:
+            printf("PDB header stream found\n");
+            break;
+
+        case type_tpi:
+            printf("Type info stream found\n");
+            break;
+
+        case type_dbi:
+            printf("Debug info stream found\n");
+            break;
+
+        case type_fpo:
+            printf("Frame pointer omission stream found\n");
+            break;
+
+        default:
+            break;
     }
 
 leave:
