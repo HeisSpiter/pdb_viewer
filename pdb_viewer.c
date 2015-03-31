@@ -258,9 +258,6 @@ static void extract_pdb(char const * const pdb_file)
         goto leave;
     }
 
-    printf("root_stream->count = %x\n", root_stream->count);
-    printf("root_stream->reserved = %x\n", root_stream->reserved);
-
     total_pages = 0;
     pages_list = (uint16_t *)((char *)root_stream + offsetof(pdb_root_t, streams) + root_stream->count * sizeof(pdb_stream_t));
 
