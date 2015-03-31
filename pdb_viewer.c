@@ -158,6 +158,13 @@ static pdb_root_t * open_root_stream(char const * const pdb_file, FILE * const p
             goto leave;
         }
 
+        if (root_page > header->file_pages)
+        {
+            fprintf(stderr, "Root page %u from '%s' beyond maximum page\n", page, pdb_file);
+            error = 1;
+            goto leave;
+        }
+
         header_position = ftell(pdb_stream);
         page_position = root_page * header->page_size;
         if (fseek(pdb_stream, page_position, SEEK_SET) == -1)
