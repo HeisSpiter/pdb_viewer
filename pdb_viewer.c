@@ -216,15 +216,17 @@ static void read_stream(char const * const pdb_file, FILE * const pdb_stream, pd
     printf("Stream size: %x\n", stream->stream_size);
     printf("Stream pages: %x\n", pages);
 
-    if (pages > 0)
+    if (pages == 0)
     {
-        printf("Stream pages list: ");
-        for (page = 0; page < pages; ++page)
-        {
-            printf("%x ", pages_list[page]);
-        }
-        printf("\n");
+        return;
     }
+
+    printf("Stream pages list: ");
+    for (page = 0; page < pages; ++page)
+    {
+        printf("%x ", pages_list[page]);
+    }
+    printf("\n");
 }
 
 static void extract_pdb(char const * const pdb_file)
