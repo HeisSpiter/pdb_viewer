@@ -209,6 +209,24 @@ leave:
     return root_stream;
 }
 
+static void read_stream(char const * const pdb_file, FILE * const pdb_stream, pdb_stream_t const * const stream, uint32_t pages, uint16_t const * const pages_list)
+{
+    uint32_t page;
+
+    printf("Stream size: %x\n", stream->stream_size);
+    printf("Stream pages: %x\n", pages);
+
+    if (pages > 0)
+    {
+        printf("Stream pages list: ");
+        for (page = 0; page < pages; ++page)
+        {
+            printf("%x ", pages_list[page]);
+        }
+        printf("\n");
+    }
+}
+
 static void extract_pdb(char const * const pdb_file)
 {
     FILE * pdb_stream;
@@ -258,18 +276,7 @@ static void extract_pdb(char const * const pdb_file)
             pages = 0;
         }
 
-        printf("Stream size: %x\n", stream->stream_size);
-        printf("Stream pages: %x\n", pages);
-
-        if (pages > 0)
-        {
-            printf("Stream pages list: ");
-            for (page = total_pages; page < total_pages + pages; ++page)
-            {
-                printf("%x ", pages_list[page]);
-            }
-            printf("\n");
-        }
+        read_stream(pdb_file, pdb_stream, stream, pages, (uint16_t *)((char *)pages_list + total_pages));
 
         total_pages += pages;
     }
