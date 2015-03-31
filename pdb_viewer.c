@@ -311,7 +311,7 @@ static void extract_pdb(char const * const pdb_file)
 
         stream = &root_stream->streams[entry];
         pages = stream->stream_size / header.page_size + 1;
-        if (stream->stream_size == 0)
+        if (stream->stream_size == 0 || stream->stream_size == -1)
         {
             pages = 0;
         }
