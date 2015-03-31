@@ -216,9 +216,11 @@ leave:
     return root_stream;
 }
 
-static void read_stream(char const * const pdb_file, FILE * const pdb_stream, pdb_stream_t const * const stream, uint32_t pages, uint16_t const * const pages_list)
+static void read_stream(char const * const pdb_file, FILE * const pdb_stream, pdb_stream_t const * const stream, uint32_t pages, uint16_t const * const pages_list, pdb_header_t const * const header)
 {
     uint32_t page;
+    char * stream_buffer;
+    uint32_t stream_size;
 
     printf("Stream size: %x\n", stream->stream_size);
     printf("Stream pages: %x\n", pages);
@@ -228,12 +230,44 @@ static void read_stream(char const * const pdb_file, FILE * const pdb_stream, pd
         return;
     }
 
-    printf("Stream pages list: ");
+    stream_size = stream->stream_size;
+    stream_buffer = malloc(stream_size);
+    if (stream_buffer == NULL)
+    {
+        return;
+    }
+
     for (page = 0; page < pages; ++page)
     {
-        printf("%x ", pages_list[page]);
+        long page_position;
+        uint32_t to_read;
+        uint16_t stream_page;
+
+        stream_page = pages_list[page];
+        if (stream_page > header->file_pages)
+        {
+            fprintf(stderr, "Stream page %u from '%s' beyond maximum page\n", page, pdb_file);
+            goto leave;
+        }
+
+        page_position = stream_page * header->page_size;
+        if (fseek(pdb_stream, page_position, SEEK_SET) == -1)
+        {
+            fprintf(stderr, "Failed to seek stream page %u at %lx from '%s'\n", page, page_position, pdb_file);
+            goto leave;
+        }
+
+        to_read = min(header->page_size, stream_size);
+        if (fread((void *)(stream_buffer + (page * header->page_size)), to_read, 1, pdb_stream) != 1)
+        {
+            fprintf(stderr, "Failed to read stream page %u at %lx from '%s'\n", page, page_position, pdb_file);
+            goto leave;
+        }
+        stream_size -= to_read;
+
     }
-    printf("\n");
+leave:
+    free(stream_buffer);
 }
 
 static void extract_pdb(char const * const pdb_file)
@@ -282,7 +316,7 @@ static void extract_pdb(char const * const pdb_file)
             pages = 0;
         }
 
-        read_stream(pdb_file, pdb_stream, stream, pages, pages_list + total_pages);
+        read_stream(pdb_file, pdb_stream, stream, pages, pages_list + total_pages, &header);
 
         total_pages += pages;
     }
