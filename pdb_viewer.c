@@ -64,6 +64,24 @@ typedef enum
     type_fpo = 5,
 } stream_types_t;
 
+typedef struct __attribute__((__packed__)) _pdb_stream_header_t
+{
+    uint32_t version;
+    uint32_t signature;
+    uint32_t age;
+} pdb_stream_header_t;
+
+typedef enum
+{
+    version_2 = 19941610,
+    version_4 = 19950623,
+    version_41 = 19950814,
+    version_5 = 19960307,
+    version_6 = 19970604,
+    version_7p = 19990604,
+    version_7 = 20000404,
+} pdb_versions_t;
+
 static inline uint32_t min(uint32_t a, uint32_t b)
 {
     if (a > b) return b;
@@ -284,7 +302,38 @@ static void read_stream(char const * const pdb_file, FILE * const pdb_stream, pd
             break;
 
         case type_pdb_header_t:
-            printf("PDB header stream found\n");
+            {
+                pdb_stream_header_t * pdb_header = stream_buffer;
+
+                switch (pdb_header->version)
+                {
+                    case version_2:
+                        printf("PDB file from VisualC++ 2.0\n");
+                        break;
+
+                    case version_4:
+                    case version_41:
+                        printf("PDB file from VisualC++ 4.0\n");
+                        break;
+
+                    case version_5:
+                        printf("PDB file from VisualC++ 5.0\n");
+                        break;
+
+                    case version_6:
+                        printf("PDB file from VisualC++ 6.0\n");
+                        break;
+
+                    case version_7p:
+                    case version_7:
+                        printf("PDB file from VisualC++ 7.0\n");
+                        break;
+
+                    default:
+                        printf("Unknown VisualC++ release: %u\n", pdb_header->version);
+                        break;
+                }
+            }
             break;
 
         case type_tpi:
