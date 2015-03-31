@@ -282,7 +282,7 @@ static void extract_pdb(char const * const pdb_file)
             pages = 0;
         }
 
-        read_stream(pdb_file, pdb_stream, stream, pages, (uint16_t *)((char *)pages_list + total_pages));
+        read_stream(pdb_file, pdb_stream, stream, pages, pages_list + total_pages);
 
         total_pages += pages;
     }
