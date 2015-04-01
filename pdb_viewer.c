@@ -305,6 +305,12 @@ static void read_stream(char const * const pdb_file, FILE * const pdb_stream, pd
             {
                 pdb_stream_header_t * pdb_header = stream_buffer;
 
+                if (stream->stream_size < sizeof(pdb_stream_header_t))
+                {
+                    printf("PDB header stream too small to contain its header\n");
+                    break;
+                }
+
                 switch (pdb_header->version)
                 {
                     case version_2:
