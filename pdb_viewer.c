@@ -71,6 +71,20 @@ typedef struct __attribute__((__packed__)) _pdb_stream_header_t
     uint32_t age;
 } pdb_stream_header_t;
 
+typedef struct __attribute__((__packed__)) _guid_t
+{
+    uint32_t data1;
+    uint16_t data2;
+    uint16_t data3;
+    uint8_t data4[8];
+} guid_t;
+
+typedef struct __attribute__((__packed__)) _pdb_stream_header_ex_t
+{
+    pdb_stream_header_t header;
+    guid_t guid;
+} pdb_stream_header_ex_t;
+
 typedef enum
 {
     version_2 = 19941610,
@@ -303,7 +317,7 @@ static void read_stream(char const * const pdb_file, FILE * const pdb_stream, pd
 
         case type_pdb_header_t:
             {
-                pdb_stream_header_t * pdb_header = stream_buffer;
+                pdb_stream_header_ex_t * pdb_header = stream_buffer;
 
                 if (stream->stream_size < sizeof(pdb_stream_header_t))
                 {
@@ -311,7 +325,7 @@ static void read_stream(char const * const pdb_file, FILE * const pdb_stream, pd
                     break;
                 }
 
-                switch (pdb_header->version)
+                switch (pdb_header->header.version)
                 {
                     case version_2:
                         printf("PDB file from VisualC++ 2.0\n");
@@ -336,8 +350,24 @@ static void read_stream(char const * const pdb_file, FILE * const pdb_stream, pd
                         break;
 
                     default:
-                        printf("Unknown VisualC++ release: %u\n", pdb_header->version);
+                        printf("Unknown VisualC++ release: %u\n", pdb_header->header.version);
                         break;
+                }
+
+                if (pdb_header->header.version > version_7p)
+                {
+                    if (stream->stream_size < sizeof(pdb_stream_header_ex_t))
+                    {
+                        printf("PDB header stream too small to contain its extended header\n");
+                        break;
+                    }
+
+                    printf("PDB ID: %08X%04X%04X%02X%02X%02X%02X%02X%02X%02X%02X%d\n", pdb_header->guid.data1, pdb_header->guid.data2,
+                                                                                       pdb_header->guid.data3, pdb_header->guid.data4[0],
+                                                                                       pdb_header->guid.data4[1], pdb_header->guid.data4[2],
+                                                                                       pdb_header->guid.data4[3], pdb_header->guid.data4[4],
+                                                                                       pdb_header->guid.data4[5], pdb_header->guid.data4[6],
+                                                                                       pdb_header->guid.data4[7], pdb_header->header.age);
                 }
             }
             break;
