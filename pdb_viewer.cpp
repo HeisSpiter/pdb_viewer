@@ -125,6 +125,8 @@ private:
     FILE * _pdb_stream;
     pdb_root_t * _root_stream;
     uint32_t _pdb_version;
+    uint16_t _gs_stream;
+    uint16_t _ps_stream;
 };
 
 static inline uint32_t min(uint32_t a, uint32_t b)
@@ -139,6 +141,8 @@ pdb_file_t::pdb_file_t(char const * const pdb_file)
     _pdb_stream = 0;
     _root_stream = 0;
     _pdb_version = version_2;
+    _gs_stream = -1;
+    _ps_stream = -1;
 }
 
 pdb_file_t::~pdb_file_t()
@@ -440,8 +444,8 @@ void pdb_file_t::read_stream(pdb_stream_t const * const stream, uint16_t stream_
                         break;
                     }
 
-                    std::cout << "Global symbols stream: " << dbi_header->global_symbols_stream << std::endl;
-                    std::cout << "Private symbols stream: " << dbi_header->private_symbols_stream << std::endl;
+                    _gs_stream = dbi_header->global_symbols_stream;
+                    _ps_stream = dbi_header->private_symbols_stream;
                 }
                 else
                 {
@@ -455,6 +459,16 @@ void pdb_file_t::read_stream(pdb_stream_t const * const stream, uint16_t stream_
             break;
 
         default:
+            {
+                if (_gs_stream < _header.file_pages && stream_index == _gs_stream)
+                {
+                    std::cout << "Global symbols stream found" << std::endl;
+                }
+                else if (_ps_stream < _header.file_pages && stream_index == _ps_stream)
+                {
+                    std::cout << "Private symbols stream found" << std::endl;
+                }
+            }
             break;
     }
 
