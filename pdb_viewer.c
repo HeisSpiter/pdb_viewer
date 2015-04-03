@@ -257,7 +257,7 @@ leave:
     return root_stream;
 }
 
-static void read_stream(char const * const pdb_file, FILE * const pdb_stream, pdb_stream_t const * const stream, uint16_t stream_index, uint32_t pages, uint16_t const * const pages_list, pdb_header_t const * const header)
+static void read_stream(char const * const pdb_file, FILE * const pdb_stream, pdb_stream_t const * const stream, uint16_t stream_index, uint32_t pages, uint16_t const * const pages_list, pdb_header_t const * const header, uint32_t * const pdb_version)
 {
     uint32_t page;
     void * stream_buffer;
@@ -354,6 +354,8 @@ static void read_stream(char const * const pdb_file, FILE * const pdb_stream, pd
                         break;
                 }
 
+                *pdb_version = pdb_header->header.version;
+
                 if (pdb_header->header.version > version_7p)
                 {
                     if (stream->stream_size < sizeof(pdb_stream_header_ex_t))
@@ -401,6 +403,7 @@ static void extract_pdb(char const * const pdb_file)
     uint32_t total_pages = 0;
     uint16_t * pages_list;
     uint32_t page;
+    uint32_t pdb_version = version_2;
 
     pdb_stream = fopen(pdb_file, "rb");
     if (pdb_stream == NULL)
@@ -438,7 +441,7 @@ static void extract_pdb(char const * const pdb_file)
             pages = 0;
         }
 
-        read_stream(pdb_file, pdb_stream, stream, entry, pages, pages_list + total_pages, &header);
+        read_stream(pdb_file, pdb_stream, stream, entry, pages, pages_list + total_pages, &header, &pdb_version);
 
         total_pages += pages;
     }
