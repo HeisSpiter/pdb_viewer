@@ -96,6 +96,13 @@ typedef enum
     version_7 = 20000404,
 } pdb_versions_t;
 
+typedef struct __attribute__((__packed__)) _old_dbi_header_t
+{
+    uint16_t global_symbols_stream;
+    uint16_t private_symbols_stream;
+    uint16_t symbols_stream;
+} old_dbi_header_t;
+
 typedef struct __attribute__((__packed__)) _dbi_header_t
 {
     uint32_t signature;
@@ -453,7 +460,17 @@ void pdb_file_t::read_stream(pdb_stream_t const * const stream, uint16_t stream_
                 }
                 else
                 {
-                    std::cout << "Debug info stream found" << std::endl;
+                    old_dbi_header_t * dbi_header = (old_dbi_header_t *)stream_buffer;
+
+                    if (stream->stream_size < sizeof(old_dbi_header_t))
+                    {
+                        std::cerr << "DBI stream too small to contain its header in '" << _pdb_file << "'" << std::endl;
+                        break;
+                    }
+
+                    _gs_stream = dbi_header->global_symbols_stream;
+                    _ps_stream = dbi_header->private_symbols_stream;
+                    _sym_stream = dbi_header->symbols_stream;
                 }
             }
             break;
