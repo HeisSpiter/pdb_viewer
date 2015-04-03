@@ -34,26 +34,26 @@
 #define PDB_SIGNATURE_200 "Microsoft C/C++ program database 2.00\r\n\x1AJG\0"
 #define PDB_SIGNATURE_200_SIZE sizeof(PDB_SIGNATURE_200)
 
-typedef struct __attribute__((__packed__)) _pdb_stream_t
+struct __attribute__((__packed__)) pdb_stream_t
 {
     uint32_t stream_size;
     uint16_t stream_page[2];
-} pdb_stream_t;
+};
 
-typedef struct __attribute__((__packed__)) _pdb_header_t
+struct __attribute__((__packed__)) pdb_header_t
 {
     uint32_t page_size;
     uint16_t start_page;
     uint16_t file_pages;
     pdb_stream_t root_stream;
-} pdb_header_t;
+};
 
-typedef struct __attribute__((__packed__)) _pdb_root_t
+struct __attribute__((__packed__)) pdb_root_t
 {
     uint16_t count;
     uint16_t reserved;
     pdb_stream_t streams[1];
-} pdb_root_t;
+};
 
 typedef enum
 {
@@ -64,26 +64,26 @@ typedef enum
     type_fpo = 5,
 } stream_types_t;
 
-typedef struct __attribute__((__packed__)) _pdb_stream_header_t
+struct __attribute__((__packed__)) pdb_stream_header_t
 {
     uint32_t version;
     uint32_t signature;
     uint32_t age;
-} pdb_stream_header_t;
+};
 
-typedef struct __attribute__((__packed__)) _guid_t
+struct __attribute__((__packed__)) guid_t
 {
     uint32_t data1;
     uint16_t data2;
     uint16_t data3;
     uint8_t data4[8];
-} guid_t;
+};
 
-typedef struct __attribute__((__packed__)) _pdb_stream_header_ex_t
+struct __attribute__((__packed__)) pdb_stream_header_ex_t
 {
     pdb_stream_header_t header;
     guid_t guid;
-} pdb_stream_header_ex_t;
+};
 
 typedef enum
 {
@@ -96,14 +96,14 @@ typedef enum
     version_7 = 20000404,
 } pdb_versions_t;
 
-typedef struct __attribute__((__packed__)) _old_dbi_header_t
+struct __attribute__((__packed__)) old_dbi_header_t
 {
     uint16_t global_symbols_stream;
     uint16_t private_symbols_stream;
     uint16_t symbols_stream;
-} old_dbi_header_t;
+};
 
-typedef struct __attribute__((__packed__)) _dbi_header_t
+struct __attribute__((__packed__)) dbi_header_t
 {
     uint32_t signature;
     uint32_t version;
@@ -113,7 +113,7 @@ typedef struct __attribute__((__packed__)) _dbi_header_t
     uint16_t private_symbols_stream;
     uint16_t dll_build_number;
     uint16_t symbols_stream;
-} dbi_header_t;
+};
 
 class pdb_file_t
 {
