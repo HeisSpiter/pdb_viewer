@@ -22,16 +22,14 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <stdio.h>
 #include <errno.h>
-#include <string.h>
 #include <stdint.h>
-#include <unistd.h>
-#include <assert.h>
-#include <stdlib.h>
-#include <stddef.h>
 #include <string>
 #include <iostream>
+#include <cassert>
+#include <cstring>
+#include <cstdio>
+#include <cstddef>
 
 #define PDB_SIGNATURE_200 "Microsoft C/C++ program database 2.00\r\n\x1AJG\0"
 #define PDB_SIGNATURE_200_SIZE sizeof(PDB_SIGNATURE_200)
@@ -153,7 +151,7 @@ pdb_file_t::~pdb_file_t()
 
     if (_root_stream != 0)
     {
-        free(_root_stream);
+        delete _root_stream;
         _root_stream = 0;
     }
 }
@@ -231,8 +229,8 @@ int pdb_file_t::open_root_stream()
         return -1;
     }
 
-    _root_stream = (pdb_root_t *)malloc(root_size);
-    if (_root_stream == NULL)
+    _root_stream = static_cast<pdb_root_t *>(operator new(root_size, std::nothrow));
+    if (_root_stream == 0)
     {
         std::cerr << "Memory allocation failure for " << root_size << "B\n" << std::endl;
         return -1;
@@ -309,8 +307,8 @@ void pdb_file_t::read_stream(pdb_stream_t const * const stream, uint16_t stream_
     }
 
     stream_size = stream->stream_size;
-    stream_buffer = malloc(stream_size);
-    if (stream_buffer == NULL)
+    stream_buffer = operator new(stream_size, std::nothrow);
+    if (stream_buffer == 0)
     {
         return;
     }
@@ -461,7 +459,7 @@ void pdb_file_t::read_stream(pdb_stream_t const * const stream, uint16_t stream_
     }
 
 leave:
-    free(stream_buffer);
+    operator delete(stream_buffer);
 }
 
 void pdb_file_t::extract_pdb()
