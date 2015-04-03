@@ -96,6 +96,17 @@ typedef enum
     version_7 = 20000404,
 } pdb_versions_t;
 
+typedef struct __attribute__((__packed__)) _dbi_header_t
+{
+    uint32_t signature;
+    uint32_t version;
+    uint32_t age;
+    uint16_t global_symbols_stream;
+    uint16_t dll_version;
+    uint16_t private_symbols_stream;
+    uint16_t dll_build_number;
+} dbi_header_t;
+
 static inline uint32_t min(uint32_t a, uint32_t b)
 {
     if (a > b) return b;
@@ -379,7 +390,37 @@ static void read_stream(char const * const pdb_file, FILE * const pdb_stream, pd
             break;
 
         case type_dbi:
-            printf("Debug info stream found\n");
+            {
+                if (*pdb_version > version_4)
+                {
+                    dbi_header_t * dbi_header = stream_buffer;
+
+                    if (stream->stream_size < sizeof(dbi_header_t))
+                    {
+                        printf("DBI stream too small to contain its header\n");
+                        break;
+                    }
+
+                    if (dbi_header->signature != 0xFFFFFFFF)
+                    {
+                        printf("Invalid signature for DBI stream: %x\n", dbi_header->signature);
+                        break;
+                    }
+
+                    if (dbi_header->version < *pdb_version)
+                    {
+                        printf("Mismatching version number for DBI stream: %u\n", dbi_header->version);
+                        break;
+                    }
+
+                    printf("Global symbols stream: %u\n", dbi_header->global_symbols_stream);
+                    printf("Private symbols stream: %u\n", dbi_header->private_symbols_stream);
+                }
+                else
+                {
+                    printf("Debug info stream found\n");
+                }
+            }
             break;
 
         case type_fpo:
