@@ -105,6 +105,7 @@ typedef struct __attribute__((__packed__)) _dbi_header_t
     uint16_t dll_version;
     uint16_t private_symbols_stream;
     uint16_t dll_build_number;
+    uint16_t symbols_stream;
 } dbi_header_t;
 
 class pdb_file_t
@@ -127,6 +128,7 @@ private:
     uint32_t _pdb_version;
     uint16_t _gs_stream;
     uint16_t _ps_stream;
+    uint16_t _sym_stream;
 };
 
 static inline uint32_t min(uint32_t a, uint32_t b)
@@ -143,6 +145,7 @@ pdb_file_t::pdb_file_t(char const * const pdb_file)
     _pdb_version = version_2;
     _gs_stream = -1;
     _ps_stream = -1;
+    _sym_stream = -1;
 }
 
 pdb_file_t::~pdb_file_t()
@@ -446,6 +449,7 @@ void pdb_file_t::read_stream(pdb_stream_t const * const stream, uint16_t stream_
 
                     _gs_stream = dbi_header->global_symbols_stream;
                     _ps_stream = dbi_header->private_symbols_stream;
+                    _sym_stream = dbi_header->symbols_stream;
                 }
                 else
                 {
@@ -460,13 +464,20 @@ void pdb_file_t::read_stream(pdb_stream_t const * const stream, uint16_t stream_
 
         default:
             {
-                if (_gs_stream < _header.file_pages && stream_index == _gs_stream)
+                if (_gs_stream < _root_stream->count && _gs_stream > type_fpo &&
+                    stream_index == _gs_stream)
                 {
                     std::cout << "Global symbols stream found" << std::endl;
                 }
-                else if (_ps_stream < _header.file_pages && stream_index == _ps_stream)
+                else if (_ps_stream < _root_stream->count && _ps_stream > type_fpo &&
+                         stream_index == _ps_stream)
                 {
                     std::cout << "Private symbols stream found" << std::endl;
+                }
+                else if (_sym_stream < _root_stream->count && _sym_stream > type_fpo &&
+                         stream_index == _sym_stream)
+                {
+                    std::cout << "Symbols stream found" << std::endl;
                 }
             }
             break;
