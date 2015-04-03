@@ -87,13 +87,13 @@ struct __attribute__((__packed__)) pdb_stream_header_ex_t
 
 typedef enum
 {
-    version_2 = 19941610,
-    version_4 = 19950623,
-    version_41 = 19950814,
-    version_5 = 19960307,
-    version_6 = 19970604,
-    version_7p = 19990604,
-    version_7 = 20000404,
+    pdb_version_2 = 19941610,
+    pdb_version_4 = 19950623,
+    pdb_version_41 = 19950814,
+    pdb_version_5 = 19960307,
+    pdb_version_6 = 19970604,
+    pdb_version_7p = 19990604,
+    pdb_version_7 = 20000404,
 } pdb_versions_t;
 
 struct __attribute__((__packed__)) old_dbi_header_t
@@ -114,6 +114,28 @@ struct __attribute__((__packed__)) dbi_header_t
     uint16_t dll_build_number;
     uint16_t symbols_stream;
 };
+
+typedef enum
+{
+    dbi_version_41 = 930803,
+    dbi_version_5 = 19960307,
+    dbi_version_6 = 19970606,
+    dbi_version_7 = 19990903,
+} dbi_versions_t;
+
+struct __attribute__((__packed__)) tpi_header_t
+{
+    uint32_t version;
+    uint32_t header_size;
+    uint32_t min_ti;
+    uint32_t max_ti;
+    uint32_t size;
+};
+
+typedef enum
+{
+    tpi_version_6 = 19961031,
+} tpi_versions_t;
 
 class pdb_file_t
 {
@@ -149,7 +171,7 @@ pdb_file_t::pdb_file_t(char const * const pdb_file)
     _pdb_file = pdb_file;
     _pdb_stream = 0;
     _root_stream = 0;
-    _pdb_version = version_2;
+    _pdb_version = pdb_version_2;
     _gs_stream = -1;
     _ps_stream = -1;
     _sym_stream = -1;
@@ -379,25 +401,25 @@ void pdb_file_t::read_stream(pdb_stream_t const * const stream, uint16_t stream_
 
                 switch (pdb_header->header.version)
                 {
-                    case version_2:
+                    case pdb_version_2:
                         std::cout << "PDB file from VisualC++ 2.0" << std::endl;
                         break;
 
-                    case version_4:
-                    case version_41:
+                    case pdb_version_4:
+                    case pdb_version_41:
                         std::cout << "PDB file from VisualC++ 4.0" << std::endl;
                         break;
 
-                    case version_5:
+                    case pdb_version_5:
                         std::cout << "PDB file from VisualC++ 5.0" << std::endl;
                         break;
 
-                    case version_6:
+                    case pdb_version_6:
                         std::cout << "PDB file from VisualC++ 6.0" << std::endl;
                         break;
 
-                    case version_7p:
-                    case version_7:
+                    case pdb_version_7p:
+                    case pdb_version_7:
                         std::cout << "PDB file from VisualC++ 7.0" << std::endl;
                         break;
 
@@ -408,7 +430,7 @@ void pdb_file_t::read_stream(pdb_stream_t const * const stream, uint16_t stream_
 
                 _pdb_version = pdb_header->header.version;
 
-                if (pdb_header->header.version > version_7p)
+                if (pdb_header->header.version > pdb_version_7p)
                 {
                     if (stream->stream_size < sizeof(pdb_stream_header_ex_t))
                     {
@@ -427,12 +449,52 @@ void pdb_file_t::read_stream(pdb_stream_t const * const stream, uint16_t stream_
             break;
 
         case type_tpi:
-            std::cout << "Type info stream found" << std::endl;
+            {
+                tpi_header_t * tpi_header = (tpi_header_t *)stream_buffer;
+
+                if (stream->stream_size < sizeof(tpi_header_t))
+                {
+                    std::cerr << "TPI stream too small to contain its header in '" << _pdb_file << "'" << std::endl;
+                    break;
+                }
+
+                switch (tpi_header->version)
+                {
+                    case tpi_version_6:
+                        std::cout << "TPI stream from VisualC++ 6.0" << std::endl;
+                        break;
+
+                    default:
+                        std::cout << "Unknown VisualC++ release: " << tpi_header->version << std::endl;
+                        break;
+                }
+
+                if (tpi_header->size == 0)
+                {
+                    if (tpi_header->min_ti != tpi_header->max_ti)
+                    {
+                        std::cout << "Corrupted header. No types information space whereas there are entries in '" << _pdb_file << "'" << std::endl;
+                    }
+                    else
+                    {
+                        std::cout << "No types information stored in '" << _pdb_file << "'" << std::endl;
+                    }
+                    break;
+                }
+
+                std::cout << "Min Type Info: " << tpi_header->min_ti << std::endl;
+                std::cout << "Max Type Info: " << tpi_header->max_ti << std::endl;
+
+                if (tpi_header->size + sizeof(tpi_header_t) > stream->stream_size)
+                {
+                    std::cerr << "TPI stream isn't big enough in '" << _pdb_file << "' to store types information" << std::endl;
+                }
+            }
             break;
 
         case type_dbi:
             {
-                if (_pdb_version > version_4)
+                if (_pdb_version > pdb_version_4)
                 {
                     dbi_header_t * dbi_header = (dbi_header_t *)stream_buffer;
 
@@ -448,10 +510,27 @@ void pdb_file_t::read_stream(pdb_stream_t const * const stream, uint16_t stream_
                         break;
                     }
 
-                    if (dbi_header->version < _pdb_version)
+                    switch (dbi_header->version)
                     {
-                        std::cerr << "Mismatching version number for DBI stream in '" << _pdb_file << "': " << dbi_header->version << std::endl;
-                        break;
+                        case dbi_version_41:
+                            std::cout << "DBI stream from VisualC++ 4.0" << std::endl;
+                            break;
+
+                        case dbi_version_5:
+                            std::cout << "DBI stream from VisualC++ 5.0" << std::endl;
+                            break;
+
+                        case dbi_version_6:
+                            std::cout << "DBI stream from VisualC++ 6.0" << std::endl;
+                            break;
+
+                        case dbi_version_7:
+                            std::cout << "DBI stream from VisualC++ 7.0" << std::endl;
+                            break;
+
+                        default:
+                            std::cout << "Unknown VisualC++ release: " << dbi_header->version << std::endl;
+                            break;
                     }
 
                     _gs_stream = dbi_header->global_symbols_stream;
