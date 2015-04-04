@@ -588,7 +588,6 @@ void pdb_file_t::extract_pdb()
     uint16_t entry;
     uint32_t total_pages = 0;
     uint16_t * pages_list;
-    uint32_t page;
 
     _pdb_stream = fopen(_pdb_file.c_str(), "rb");
     if (_pdb_stream == 0)
