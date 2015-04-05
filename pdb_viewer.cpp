@@ -391,7 +391,7 @@ void pdb_file_t::read_stream(pdb_stream_t const * const stream, uint16_t stream_
 
         case type_pdb_header_t:
             {
-                pdb_stream_header_ex_t * pdb_header = (pdb_stream_header_ex_t *)stream_buffer;
+                pdb_stream_header_ex_t * pdb_header = static_cast<pdb_stream_header_ex_t *>(stream_buffer);
 
                 if (stream->stream_size < sizeof(pdb_stream_header_t))
                 {
@@ -450,7 +450,7 @@ void pdb_file_t::read_stream(pdb_stream_t const * const stream, uint16_t stream_
 
         case type_tpi:
             {
-                tpi_header_t * tpi_header = (tpi_header_t *)stream_buffer;
+                tpi_header_t * tpi_header = static_cast<tpi_header_t *>(stream_buffer);
 
                 if (stream->stream_size < sizeof(tpi_header_t))
                 {
@@ -496,7 +496,7 @@ void pdb_file_t::read_stream(pdb_stream_t const * const stream, uint16_t stream_
             {
                 if (_pdb_version > pdb_version_4)
                 {
-                    dbi_header_t * dbi_header = (dbi_header_t *)stream_buffer;
+                    dbi_header_t * dbi_header = static_cast<dbi_header_t *>(stream_buffer);
 
                     if (stream->stream_size < sizeof(dbi_header_t))
                     {
@@ -539,7 +539,7 @@ void pdb_file_t::read_stream(pdb_stream_t const * const stream, uint16_t stream_
                 }
                 else
                 {
-                    old_dbi_header_t * dbi_header = (old_dbi_header_t *)stream_buffer;
+                    old_dbi_header_t * dbi_header = static_cast<old_dbi_header_t *>(stream_buffer);
 
                     if (stream->stream_size < sizeof(old_dbi_header_t))
                     {
