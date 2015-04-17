@@ -137,6 +137,20 @@ typedef enum
     tpi_version_6 = 19961031,
 } tpi_versions_t;
 
+struct __attribute__((__packed__)) symbol_data_t
+{
+    uint16_t version;
+    uint32_t type;
+    uint32_t offset;
+    uint16_t segment;
+};
+
+typedef enum
+{
+    symbol_data_version_2 = 0x1009,
+    symbol_data_version_3 = 0x110E,
+}  symbol_data_version_t;
+
 class pdb_file_t
 {
 public:
@@ -535,7 +549,86 @@ void pdb_file_t::read_stream_ps(pdb_stream_t const * const stream, uint16_t stre
 
 void pdb_file_t::read_stream_sym(pdb_stream_t const * const stream, uint16_t stream_index, void const * const stream_buffer)
 {
-    std::cout << "Symbols stream found" << std::endl;
+    void const * buffer = stream_buffer;
+    void const * const end_buffer = ((char *)stream_buffer + stream->stream_size);
+
+    if (stream->stream_size < sizeof(uint16_t))
+    {
+        std::cerr << "Symbol stream too small to contain its signature in '" << _pdb_file << "'" << std::endl;
+        return;
+    }
+
+    if (*static_cast<uint16_t const * const>(buffer) != 0x0022)
+    {
+        std::cerr << "Invalid signature for Symbol stream in '" << _pdb_file << "'" << std::endl;
+        return;
+    }
+
+    buffer = (void const *)((uint16_t *)buffer + 1);
+    while ((char *)buffer + sizeof(symbol_data_t) < end_buffer)
+    {
+        symbol_data_t const * data = static_cast<symbol_data_t const *>(buffer);
+        uint8_t len;
+
+        if (data->version != symbol_data_version_2)
+        {
+            /* HACK, there appear to have weird padding in files */
+            buffer = (void const *)((uint16_t *)buffer + 1);
+            if ((char *)buffer + sizeof(symbol_data_t) > end_buffer)
+            {
+                break;
+            }
+
+            data = static_cast<symbol_data_t const *>(buffer);
+            if (data->version != symbol_data_version_2)
+            {
+                /* HACK, there appear to have weird padding in files */
+                buffer = (void const *)((uint16_t *)buffer + 1);
+                if ((char *)buffer + sizeof(symbol_data_t) > end_buffer)
+                {
+                    break;
+                }
+
+                data = static_cast<symbol_data_t const *>(buffer);
+                if (data->version != symbol_data_version_2)
+                {
+                    std::cerr << "Unsupported symbol version in " << _pdb_file << " symbols stream" << std::endl;
+                    break;
+                }
+            }
+        }
+
+        buffer = (void const *)((symbol_data_t *)buffer + 1);
+        if ((char *)buffer + sizeof(uint8_t) > end_buffer)
+        {
+            std::cerr << "Symbol stream corrupted in " << _pdb_file << std::endl;
+            break;
+        }
+
+        len = *static_cast<uint8_t const *>(buffer);
+        buffer = (void const *)((uint8_t *)buffer + 1);
+
+        if ((char *)buffer + len > end_buffer)
+        {
+            std::cerr << "Symbol stream corrupted in " << _pdb_file << std::endl;
+            break;
+        }
+
+        printf("At %#x:%#x, ", data->segment, data->offset);
+        for (uint8_t i = 0; i < len; ++i)
+        {
+            std::cout << (char)((uint8_t *)buffer)[i];
+        }
+        std::cout << std::endl;
+
+        buffer = (void const *)((char *)buffer + len);
+        /* Jump to next entry must be aligned on uint16_t */
+        if ((uintptr_t)buffer & 1 != 0)
+        {
+            buffer = (void const *)((char *)buffer + 1);
+        }
+    }
+
     return;
 }
 
