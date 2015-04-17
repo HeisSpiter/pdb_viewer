@@ -558,11 +558,13 @@ void pdb_file_t::read_stream_sym(pdb_stream_t const * const stream, uint16_t str
         return;
     }
 
+#if 0 /* FIXME: Not a signature. What then? */
     if (*static_cast<uint16_t const * const>(buffer) != 0x0022)
     {
         std::cerr << "Invalid signature for Symbol stream in '" << _pdb_file << "'" << std::endl;
         return;
     }
+#endif
 
     buffer = (void const *)((uint16_t *)buffer + 1);
     while ((char *)buffer + sizeof(symbol_data_t) < end_buffer)
@@ -614,7 +616,7 @@ void pdb_file_t::read_stream_sym(pdb_stream_t const * const stream, uint16_t str
             break;
         }
 
-        printf("At %#x:%#x, ", data->segment, data->offset);
+        printf("At %#04x:%#010x, ", data->segment, data->offset);
         for (uint8_t i = 0; i < len; ++i)
         {
             std::cout << (char)((uint8_t *)buffer)[i];
