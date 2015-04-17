@@ -150,6 +150,12 @@ private:
     int open_root_stream();
     void read_stream(pdb_stream_t const * const stream, uint16_t stream_index, uint32_t pages, uint16_t const * const pages_list);
 
+    void read_stream_root_t(pdb_stream_t const * const stream, uint16_t stream_index, void const * const stream_buffer);
+    void read_stream_pdb_header_t(pdb_stream_t const * const stream, uint16_t stream_index, pdb_stream_header_ex_t const * const pdb_header);
+    void read_stream_tpi(pdb_stream_t const * const stream, uint16_t stream_index, tpi_header_t const * const tpi_header);
+    void read_stream_dbi(pdb_stream_t const * const stream, uint16_t stream_index, void const * const stream_buffer);
+    void read_stream_fpo(pdb_stream_t const * const stream, uint16_t stream_index, void const * const stream_buffer);
+
     std::string _pdb_file;
     pdb_header_t _header;
     FILE * _pdb_stream;
@@ -331,6 +337,187 @@ int pdb_file_t::open_root_stream()
     return 0;
 }
 
+void pdb_file_t::read_stream_root_t(pdb_stream_t const * const stream, uint16_t stream_index, void const * const stream_buffer)
+{
+    if (stream->stream_size != _header.root_stream.stream_size)
+    {
+        std::cerr << "Mismatching root stream and copy root stream sizes in '" << _pdb_file << "'!" << std::endl;
+    }
+
+    return;
+}
+
+void pdb_file_t::read_stream_pdb_header_t(pdb_stream_t const * const stream, uint16_t stream_index, pdb_stream_header_ex_t const * const pdb_header)
+{
+    if (stream->stream_size < sizeof(pdb_stream_header_t))
+    {
+        std::cerr << "PDB header stream too small to contain its header in '" << _pdb_file << "'" << std::endl;
+        return;
+    }
+
+    switch (pdb_header->header.version)
+    {
+        case pdb_version_2:
+            std::cout << "PDB file from VisualC++ 2.0" << std::endl;
+            break;
+
+        case pdb_version_4:
+        case pdb_version_41:
+            std::cout << "PDB file from VisualC++ 4.0" << std::endl;
+            break;
+
+        case pdb_version_5:
+            std::cout << "PDB file from VisualC++ 5.0" << std::endl;
+            break;
+
+        case pdb_version_6:
+            std::cout << "PDB file from VisualC++ 6.0" << std::endl;
+            break;
+
+        case pdb_version_7p:
+        case pdb_version_7:
+            std::cout << "PDB file from VisualC++ 7.0" << std::endl;
+            break;
+
+        default:
+            std::cout << "Unknown VisualC++ release: " << pdb_header->header.version << std::endl;
+            break;
+    }
+
+    _pdb_version = pdb_header->header.version;
+
+    if (pdb_header->header.version > pdb_version_7p)
+    {
+        if (stream->stream_size < sizeof(pdb_stream_header_ex_t))
+        {
+            std::cerr << "PDB header stream too small to contain its extended header in '" << _pdb_file << "'" << std::endl;
+            return;
+        }
+
+        printf("PDB ID: %08X%04X%04X%02X%02X%02X%02X%02X%02X%02X%02X%d\n", pdb_header->guid.data1, pdb_header->guid.data2,
+                                                                           pdb_header->guid.data3, pdb_header->guid.data4[0],
+                                                                           pdb_header->guid.data4[1], pdb_header->guid.data4[2],
+                                                                           pdb_header->guid.data4[3], pdb_header->guid.data4[4],
+                                                                           pdb_header->guid.data4[5], pdb_header->guid.data4[6],
+                                                                           pdb_header->guid.data4[7], pdb_header->header.age);
+    }
+
+    return;
+}
+
+void pdb_file_t::read_stream_tpi(pdb_stream_t const * const stream, uint16_t stream_index, tpi_header_t const * const tpi_header)
+{
+    if (stream->stream_size < sizeof(tpi_header_t))
+    {
+        std::cerr << "TPI stream too small to contain its header in '" << _pdb_file << "'" << std::endl;
+        return;
+    }
+
+    switch (tpi_header->version)
+    {
+        case tpi_version_6:
+            std::cout << "TPI stream from VisualC++ 6.0" << std::endl;
+            break;
+
+        default:
+            std::cout << "Unknown VisualC++ release: " << tpi_header->version << std::endl;
+            break;
+    }
+
+    if (tpi_header->size == 0)
+    {
+        if (tpi_header->min_ti != tpi_header->max_ti)
+        {
+            std::cout << "Corrupted header. No types information space whereas there are entries in '" << _pdb_file << "'" << std::endl;
+        }
+        else
+        {
+            std::cout << "No types information stored in '" << _pdb_file << "'" << std::endl;
+        }
+
+        return;
+    }
+
+    std::cout << "Min Type Info: " << tpi_header->min_ti << std::endl;
+    std::cout << "Max Type Info: " << tpi_header->max_ti << std::endl;
+
+    if (tpi_header->size + sizeof(tpi_header_t) > stream->stream_size)
+    {
+        std::cerr << "TPI stream isn't big enough in '" << _pdb_file << "' to store types information" << std::endl;
+    }
+
+    return;
+}
+
+void pdb_file_t::read_stream_dbi(pdb_stream_t const * const stream, uint16_t stream_index, void const * const stream_buffer)
+{
+    if (_pdb_version > pdb_version_4)
+    {
+        dbi_header_t const * const dbi_header = static_cast<dbi_header_t const * const>(stream_buffer);
+
+        if (stream->stream_size < sizeof(dbi_header_t))
+        {
+            std::cerr << "DBI stream too small to contain its header in '" << _pdb_file << "'" << std::endl;
+            return;
+        }
+
+        if (dbi_header->signature != 0xFFFFFFFF)
+        {
+            std::cerr << "Invalid signature for DBI stream in '" << _pdb_file << "': " << dbi_header->signature << std::endl;
+            return;
+        }
+
+        switch (dbi_header->version)
+        {
+            case dbi_version_41:
+                std::cout << "DBI stream from VisualC++ 4.0" << std::endl;
+                break;
+
+            case dbi_version_5:
+                std::cout << "DBI stream from VisualC++ 5.0" << std::endl;
+                break;
+
+            case dbi_version_6:
+                std::cout << "DBI stream from VisualC++ 6.0" << std::endl;
+                break;
+
+            case dbi_version_7:
+                std::cout << "DBI stream from VisualC++ 7.0" << std::endl;
+                break;
+
+            default:
+                std::cout << "Unknown VisualC++ release: " << dbi_header->version << std::endl;
+                break;
+        }
+
+        _gs_stream = dbi_header->global_symbols_stream;
+        _ps_stream = dbi_header->private_symbols_stream;
+        _sym_stream = dbi_header->symbols_stream;
+    }
+    else
+    {
+        old_dbi_header_t const * const dbi_header = static_cast<old_dbi_header_t const * const>(stream_buffer);
+
+        if (stream->stream_size < sizeof(old_dbi_header_t))
+        {
+            std::cerr << "DBI stream too small to contain its header in '" << _pdb_file << "'" << std::endl;
+            return;
+        }
+
+        _gs_stream = dbi_header->global_symbols_stream;
+        _ps_stream = dbi_header->private_symbols_stream;
+        _sym_stream = dbi_header->symbols_stream;
+    }
+
+    return;
+}
+
+void pdb_file_t::read_stream_fpo(pdb_stream_t const * const stream, uint16_t stream_index, void const * const stream_buffer)
+{
+    std::cout << "Frame pointer omission stream found" << std::endl;
+    return;
+}
+
 void pdb_file_t::read_stream(pdb_stream_t const * const stream, uint16_t stream_index, uint32_t pages, uint16_t const * const pages_list)
 {
     uint32_t page;
@@ -382,180 +569,23 @@ void pdb_file_t::read_stream(pdb_stream_t const * const stream, uint16_t stream_
     switch (stream_index)
     {
         case type_root_t:
-            if (stream->stream_size != _header.root_stream.stream_size)
-            {
-                std::cerr << "Mismatching root stream and copy root stream sizes in '" << _pdb_file << "'!" << std::endl;
-            }
-
+            read_stream_root_t(stream, stream_index, stream_buffer);
             break;
 
         case type_pdb_header_t:
-            {
-                pdb_stream_header_ex_t * pdb_header = static_cast<pdb_stream_header_ex_t *>(stream_buffer);
-
-                if (stream->stream_size < sizeof(pdb_stream_header_t))
-                {
-                    std::cerr << "PDB header stream too small to contain its header in '" << _pdb_file << "'" << std::endl;
-                    break;
-                }
-
-                switch (pdb_header->header.version)
-                {
-                    case pdb_version_2:
-                        std::cout << "PDB file from VisualC++ 2.0" << std::endl;
-                        break;
-
-                    case pdb_version_4:
-                    case pdb_version_41:
-                        std::cout << "PDB file from VisualC++ 4.0" << std::endl;
-                        break;
-
-                    case pdb_version_5:
-                        std::cout << "PDB file from VisualC++ 5.0" << std::endl;
-                        break;
-
-                    case pdb_version_6:
-                        std::cout << "PDB file from VisualC++ 6.0" << std::endl;
-                        break;
-
-                    case pdb_version_7p:
-                    case pdb_version_7:
-                        std::cout << "PDB file from VisualC++ 7.0" << std::endl;
-                        break;
-
-                    default:
-                        std::cout << "Unknown VisualC++ release: " << pdb_header->header.version << std::endl;
-                        break;
-                }
-
-                _pdb_version = pdb_header->header.version;
-
-                if (pdb_header->header.version > pdb_version_7p)
-                {
-                    if (stream->stream_size < sizeof(pdb_stream_header_ex_t))
-                    {
-                        std::cerr << "PDB header stream too small to contain its extended header in '" << _pdb_file << "'" << std::endl;
-                        break;
-                    }
-
-                    printf("PDB ID: %08X%04X%04X%02X%02X%02X%02X%02X%02X%02X%02X%d\n", pdb_header->guid.data1, pdb_header->guid.data2,
-                                                                                       pdb_header->guid.data3, pdb_header->guid.data4[0],
-                                                                                       pdb_header->guid.data4[1], pdb_header->guid.data4[2],
-                                                                                       pdb_header->guid.data4[3], pdb_header->guid.data4[4],
-                                                                                       pdb_header->guid.data4[5], pdb_header->guid.data4[6],
-                                                                                       pdb_header->guid.data4[7], pdb_header->header.age);
-                }
-            }
+            read_stream_pdb_header_t(stream, stream_index, static_cast<pdb_stream_header_ex_t *>(stream_buffer));
             break;
 
         case type_tpi:
-            {
-                tpi_header_t * tpi_header = static_cast<tpi_header_t *>(stream_buffer);
-
-                if (stream->stream_size < sizeof(tpi_header_t))
-                {
-                    std::cerr << "TPI stream too small to contain its header in '" << _pdb_file << "'" << std::endl;
-                    break;
-                }
-
-                switch (tpi_header->version)
-                {
-                    case tpi_version_6:
-                        std::cout << "TPI stream from VisualC++ 6.0" << std::endl;
-                        break;
-
-                    default:
-                        std::cout << "Unknown VisualC++ release: " << tpi_header->version << std::endl;
-                        break;
-                }
-
-                if (tpi_header->size == 0)
-                {
-                    if (tpi_header->min_ti != tpi_header->max_ti)
-                    {
-                        std::cout << "Corrupted header. No types information space whereas there are entries in '" << _pdb_file << "'" << std::endl;
-                    }
-                    else
-                    {
-                        std::cout << "No types information stored in '" << _pdb_file << "'" << std::endl;
-                    }
-                    break;
-                }
-
-                std::cout << "Min Type Info: " << tpi_header->min_ti << std::endl;
-                std::cout << "Max Type Info: " << tpi_header->max_ti << std::endl;
-
-                if (tpi_header->size + sizeof(tpi_header_t) > stream->stream_size)
-                {
-                    std::cerr << "TPI stream isn't big enough in '" << _pdb_file << "' to store types information" << std::endl;
-                }
-            }
+            read_stream_tpi(stream, stream_index, static_cast<tpi_header_t *>(stream_buffer));
             break;
 
         case type_dbi:
-            {
-                if (_pdb_version > pdb_version_4)
-                {
-                    dbi_header_t * dbi_header = static_cast<dbi_header_t *>(stream_buffer);
-
-                    if (stream->stream_size < sizeof(dbi_header_t))
-                    {
-                        std::cerr << "DBI stream too small to contain its header in '" << _pdb_file << "'" << std::endl;
-                        break;
-                    }
-
-                    if (dbi_header->signature != 0xFFFFFFFF)
-                    {
-                        std::cerr << "Invalid signature for DBI stream in '" << _pdb_file << "': " << dbi_header->signature << std::endl;
-                        break;
-                    }
-
-                    switch (dbi_header->version)
-                    {
-                        case dbi_version_41:
-                            std::cout << "DBI stream from VisualC++ 4.0" << std::endl;
-                            break;
-
-                        case dbi_version_5:
-                            std::cout << "DBI stream from VisualC++ 5.0" << std::endl;
-                            break;
-
-                        case dbi_version_6:
-                            std::cout << "DBI stream from VisualC++ 6.0" << std::endl;
-                            break;
-
-                        case dbi_version_7:
-                            std::cout << "DBI stream from VisualC++ 7.0" << std::endl;
-                            break;
-
-                        default:
-                            std::cout << "Unknown VisualC++ release: " << dbi_header->version << std::endl;
-                            break;
-                    }
-
-                    _gs_stream = dbi_header->global_symbols_stream;
-                    _ps_stream = dbi_header->private_symbols_stream;
-                    _sym_stream = dbi_header->symbols_stream;
-                }
-                else
-                {
-                    old_dbi_header_t * dbi_header = static_cast<old_dbi_header_t *>(stream_buffer);
-
-                    if (stream->stream_size < sizeof(old_dbi_header_t))
-                    {
-                        std::cerr << "DBI stream too small to contain its header in '" << _pdb_file << "'" << std::endl;
-                        break;
-                    }
-
-                    _gs_stream = dbi_header->global_symbols_stream;
-                    _ps_stream = dbi_header->private_symbols_stream;
-                    _sym_stream = dbi_header->symbols_stream;
-                }
-            }
+            read_stream_dbi(stream, stream_index, stream_buffer);
             break;
 
         case type_fpo:
-            std::cout << "Frame pointer omission stream found" << std::endl;
+            read_stream_fpo(stream, stream_index, stream_buffer);
             break;
 
         default:
