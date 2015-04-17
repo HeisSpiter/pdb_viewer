@@ -719,6 +719,10 @@ void pdb_file_t::read_stream(pdb_stream_t const * const stream, uint16_t stream_
                 {
                     read_stream_sym(stream, stream_index, stream_buffer);
                 }
+                else
+                {
+                    std::cerr << "Unknown stream " << stream_index << " in " << _pdb_file << std::endl;
+                }
             }
             break;
     }
