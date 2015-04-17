@@ -155,6 +155,9 @@ private:
     void read_stream_tpi(pdb_stream_t const * const stream, uint16_t stream_index, tpi_header_t const * const tpi_header);
     void read_stream_dbi(pdb_stream_t const * const stream, uint16_t stream_index, void const * const stream_buffer);
     void read_stream_fpo(pdb_stream_t const * const stream, uint16_t stream_index, void const * const stream_buffer);
+    void read_stream_gs(pdb_stream_t const * const stream, uint16_t stream_index, void const * const stream_buffer);
+    void read_stream_ps(pdb_stream_t const * const stream, uint16_t stream_index, void const * const stream_buffer);
+    void read_stream_sym(pdb_stream_t const * const stream, uint16_t stream_index, void const * const stream_buffer);
 
     std::string _pdb_file;
     pdb_header_t _header;
@@ -518,6 +521,24 @@ void pdb_file_t::read_stream_fpo(pdb_stream_t const * const stream, uint16_t str
     return;
 }
 
+void pdb_file_t::read_stream_gs(pdb_stream_t const * const stream, uint16_t stream_index, void const * const stream_buffer)
+{
+    std::cout << "Global symbols stream found" << std::endl;
+    return;
+}
+
+void pdb_file_t::read_stream_ps(pdb_stream_t const * const stream, uint16_t stream_index, void const * const stream_buffer)
+{
+    std::cout << "Private symbols stream found" << std::endl;
+    return;
+}
+
+void pdb_file_t::read_stream_sym(pdb_stream_t const * const stream, uint16_t stream_index, void const * const stream_buffer)
+{
+    std::cout << "Symbols stream found" << std::endl;
+    return;
+}
+
 void pdb_file_t::read_stream(pdb_stream_t const * const stream, uint16_t stream_index, uint32_t pages, uint16_t const * const pages_list)
 {
     uint32_t page;
@@ -593,17 +614,17 @@ void pdb_file_t::read_stream(pdb_stream_t const * const stream, uint16_t stream_
                 if (_gs_stream < _root_stream->count && _gs_stream > type_fpo &&
                     stream_index == _gs_stream)
                 {
-                    std::cout << "Global symbols stream found" << std::endl;
+                    read_stream_gs(stream, stream_index, stream_buffer);
                 }
                 else if (_ps_stream < _root_stream->count && _ps_stream > type_fpo &&
                          stream_index == _ps_stream)
                 {
-                    std::cout << "Private symbols stream found" << std::endl;
+                    read_stream_ps(stream, stream_index, stream_buffer);
                 }
                 else if (_sym_stream < _root_stream->count && _sym_stream > type_fpo &&
                          stream_index == _sym_stream)
                 {
-                    std::cout << "Symbols stream found" << std::endl;
+                    read_stream_sym(stream, stream_index, stream_buffer);
                 }
             }
             break;
